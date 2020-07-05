@@ -7,6 +7,7 @@ import os, sys, Logging, queue
 import KLine
 import KLineBinance
 import datetime
+import EMA21
 
 # host = "localhost"
 host ="0.0.0.0"
@@ -27,6 +28,9 @@ kline.start()
 
 kline_binance = KLineBinance.KLine()
 kline_binance.start()
+
+ema = EMA21.EMA21()
+ema.start()
 
 alarm_data = []
 alarm_data_binance = []
@@ -113,9 +117,15 @@ def get_alarm():
         if now-60>data['timestamp']:
             alarm_data = alarm_data[:index]
 
+    ema_alarm = ema.get_alarm_data()
+    alarm_data.extend(ema_alarm)
+
     return json.dumps(alarm_data)
 
 
+@app.route('/ema21')
+def get_ema21():
+    return json.dumps(ema.get_ema_g())
 
 @app.route('/delete')
 def test_delete_alarm():
