@@ -7,15 +7,15 @@ from dateutil.relativedelta import relativedelta
 class EMA21(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
-        self.btcusd_ema_g = {"30":None}
-        self.ethusd_ema_g = {"30":None}
-        self.xrpusd_ema_g = {"30":None}
-        self.eosusd_ema_g = {"30":None}
+        self.btcusd_ema_g = {"30":None, "15":None}
+        self.ethusd_ema_g = {"30":None, "15":None}
+        self.xrpusd_ema_g = {"30":None, "15":None}
+        self.eosusd_ema_g = {"30":None, "15":None}
 
-        self.alarm = {"BTCUSD": {"30M-EMA21":None},
-                      "ETHUSD": {"30M-EMA21":None},
-                      "XRPUSD": {"30M-EMA21":None},
-                      "EOSUSD": {"30M-EMA21":None}}
+        self.alarm = {"BTCUSD": {"30M-EMA21":None, "15M-EMA21":None},
+                      "ETHUSD": {"30M-EMA21":None, "15M-EMA21":None},
+                      "XRPUSD": {"30M-EMA21":None, "15M-EMA21":None},
+                      "EOSUSD": {"30M-EMA21":None, "15M-EMA21":None}}
 
         self.bybit = Bybit.Bybit(True)
 
@@ -39,7 +39,7 @@ class EMA21(threading.Thread):
             i += 1
 
         for i in range(len(ema_list[:-1])):
-            g_list.append((ema_list[i + 1][0], ema_list[i][1] / ema_list[i + 1][1]))
+            g_list.append((ema_list[i + 1][0], ema_list[i + 1][1] - ema_list[i][1]))
         return g_list
 
     def get_alarm_data(self):
@@ -56,39 +56,46 @@ class EMA21(threading.Thread):
     def get_ema_g(self):
         return {"BTCUSD":self.btcusd_ema_g, "ETHUSD":self.ethusd_ema_g, "XRPUSD":self.xrpusd_ema_g, "EOSUSD":self.eosusd_ema_g}
 
+    def main_func(self, ema_time, alarm_key):
+        g_list = self.cal_ema(self.bybit.get_kline("BTCUSD", ema_time, int((datetime.datetime.now() - relativedelta(minutes=1320)).timestamp()), 200)['result'])
+        self.btcusd_ema_g[ema_time] = g_list
+        if g_list[-2][1] * g_list[-1][1] < 0:
+            self.alarm["BTCUSD"][alarm_key] = g_list[-1][0]
+        else:
+            self.alarm["BTCUSD"][alarm_key] = None
+        time.sleep(1)
+
+        g_list = self.cal_ema(self.bybit.get_kline("ETHUSD", ema_time, int((datetime.datetime.now() - relativedelta(minutes=1320)).timestamp()), 200)['result'])
+        self.ethusd_ema_g[ema_time] = g_list
+        if g_list[-2][1] * g_list[-1][1] < 0:
+            self.alarm["ETHUSD"][alarm_key] = datetime.datetime.now().timestamp()
+        else:
+            self.alarm["ETHUSD"][alarm_key] = None
+        time.sleep(1)
+
+        g_list = self.cal_ema(self.bybit.get_kline("XRPUSD", ema_time, int((datetime.datetime.now() - relativedelta(minutes=1320)).timestamp()), 200)['result'])
+        self.xrpusd_ema_g[ema_time] = g_list
+        if g_list[-2][1] * g_list[-1][1] < 0:
+            self.alarm["XRPUSD"][alarm_key] = datetime.datetime.now().timestamp()
+        else:
+            self.alarm["XRPUSD"][alarm_key] = None
+        time.sleep(1)
+
+        g_list = self.cal_ema(self.bybit.get_kline("EOSUSD", ema_time, int((datetime.datetime.now() - relativedelta(minutes=1320)).timestamp()), 200)['result'])
+        self.eosusd_ema_g[ema_time] = g_list
+        if g_list[-2][1] * g_list[-1][1] < 0:
+            self.alarm["EOSUSD"][alarm_key] = datetime.datetime.now().timestamp()
+        else:
+            self.alarm["EOSUSD"][alarm_key] = None
+        time.sleep(1)
+
+
     def run(self):
         while True:
-            g_list = self.cal_ema(self.bybit.get_kline("BTCUSD", "30", int((datetime.datetime.now() - relativedelta(minutes=1320)).timestamp()), 200)['result'])
-            self.btcusd_ema_g["30"] = g_list
-            if g_list[-2][1] * g_list[-1][1] < 0:
-                self.alarm["BTCUSD"]["30M-EMA21"] = g_list[-1][0]
-            else:
-                self.alarm["BTCUSD"]["30M-EMA21"] = None
-            time.sleep(1)
+            self.main_func("30", "30M-EMA21")
+            self.main_func("15", "15M-EMA21")
 
-            g_list = self.cal_ema(self.bybit.get_kline("ETHUSD", "30", int((datetime.datetime.now() - relativedelta(minutes=1320)).timestamp()), 200)['result'])
-            self.ethusd_ema_g["30"] = g_list
-            if g_list[-2][1] * g_list[-1][1] < 0:
-                self.alarm["ETHUSD"]["30M-EMA21"] = datetime.datetime.now().timestamp()
-            else:
-                self.alarm["ETHUSD"]["30M-EMA21"] = None
-            time.sleep(1)
-
-            g_list = self.cal_ema(self.bybit.get_kline("XRPUSD", "30", int((datetime.datetime.now() - relativedelta(minutes=1320)).timestamp()), 200)['result'])
-            self.xrpusd_ema_g["30"] = g_list
-            if g_list[-2][1] * g_list[-1][1] < 0:
-                self.alarm["XRPUSD"]["30M-EMA21"] = datetime.datetime.now().timestamp()
-            else:
-                self.alarm["XRPUSD"]["30M-EMA21"] = None
-            time.sleep(1)
-
-            g_list = self.cal_ema(self.bybit.get_kline("EOSUSD", "30", int((datetime.datetime.now() - relativedelta(minutes=1320)).timestamp()), 200)['result'])
-            self.eosusd_ema_g["30"] = g_list
-            if g_list[-2][1] * g_list[-1][1] < 0:
-                self.alarm["EOSUSD"]["30M-EMA21"] = datetime.datetime.now().timestamp()
-            else:
-                self.alarm["EOSUSD"]["30M-EMA21"] = None
-            time.sleep(1)
+            print(self.btcusd_ema_g)
 
             time.sleep(60)
 
